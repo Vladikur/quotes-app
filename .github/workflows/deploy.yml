@@ -61,7 +61,15 @@ jobs:
           # скриптом build-release — он зовёт node-gyp с --force_build=1.
           rm -rf node_modules/better-sqlite3/prebuilds
           ( cd node_modules/better-sqlite3 && npm run build-release ) 2>&1 | tee /tmp/gyp.log
-          ls -la node_modules/better-sqlite3/build/Release/better_sqlite3.node
+
+          # Трассировщик Next копирует в standalone только prebuilds/, каталог
+          # build/ он не видит — без этого шага в бандле не окажется вообще
+          # никакого нативного бинарника. Кладём свежесобранный туда, где его
+          # ждут и трассировщик, и getBinding() из lib/binding.js.
+          mkdir -p node_modules/better-sqlite3/prebuilds
+          cp node_modules/better-sqlite3/build/Release/better_sqlite3.node \
+             node_modules/better-sqlite3/prebuilds/linux-x64.node
+          ls -la node_modules/better-sqlite3/prebuilds/linux-x64.node
 
       - name: Build
         id: build
@@ -129,9 +137,16 @@ jobs:
         shell: bash
         run: |
           BIN=$(find .next/standalone/node_modules/better-sqlite3 -name '*.node' | head -1)
+          if [ -z "$BIN" ]; then
+            echo "::error::в бандле нет нативного бинарника better-sqlite3"
+            find .next/standalone/node_modules/better-sqlite3 -type f | head -20
+            exit 1
+          fi
           echo "бинарник в бандле: $BIN"
-          echo "максимальный требуемый glibc:"
-          strings "$BIN" | grep -o 'GLIBC_2\.[0-9]*' | sort -uV | tail -1
+          # grep без совпадений возвращает 1, а шаг идёт под pipefail.
+          echo "максимальный требуемый glibc: $(
+            strings "$BIN" | grep -o 'GLIBC_2\.[0-9]*' | sort -uV | tail -1 || true
+          )"
           node -e "
             const p = require.resolve('better-sqlite3', { paths: ['.next/standalone'] });
             const db = new (require(p))(':memory:');
