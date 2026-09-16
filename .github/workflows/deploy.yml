@@ -25,7 +25,8 @@ jobs:
       - name: Install deploy tooling
         run: |
           apt-get update -qq
-          apt-get install -y --no-install-recommends rsync openssh-client
+          apt-get install -y --no-install-recommends \
+            rsync openssh-client python3 make g++
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +40,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Готовый бинарник better-sqlite3 требует GLIBC_2.33, а и контейнер
+      # сборки, и прод — glibc 2.31, так что он не грузится ни там, ни там.
+      # Собираем из исходников. prebuilds надо снести ДО сборки по двум
+      # причинам: lib/binding.js предпочитает их каталогу build/Release, а
+      # binding.gyp при их наличии вообще пропускает компиляцию.
+      - name: Rebuild better-sqlite3 from source
+        shell: bash
+        run: |
+          rm -rf node_modules/better-sqlite3/prebuilds
+          npm rebuild better-sqlite3 --build-from-source
+          ls -la node_modules/better-sqlite3/build/Release/better_sqlite3.node
 
       - name: Build
         id: build
@@ -95,13 +108,20 @@ jobs:
           cp ecosystem.config.js .next/standalone/ecosystem.config.js
           du -sh .next/standalone
 
+      # Если бинарник грузится здесь, на glibc 2.31, то и на проде (тоже
+      # 2.31) он загрузится. Это и есть настоящая проверка совместимости.
       - name: Verify native module matches target glibc
+        shell: bash
         run: |
+          BIN=$(find .next/standalone/node_modules/better-sqlite3 -name '*.node' | head -1)
+          echo "бинарник в бандле: $BIN"
+          echo "максимальный требуемый glibc:"
+          strings "$BIN" | grep -o 'GLIBC_2\.[0-9]*' | sort -uV | tail -1
           node -e "
             const p = require.resolve('better-sqlite3', { paths: ['.next/standalone'] });
             const db = new (require(p))(':memory:');
-            db.prepare('select 1 as ok').get();
-            console.log('better-sqlite3 loads from the bundle OK');
+            console.log('select 1 ->', db.prepare('select 1 as ok').get().ok);
+            console.log('better-sqlite3 грузится из бандла OK');
           "
 
       - name: Set up SSH agent
