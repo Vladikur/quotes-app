@@ -41,7 +41,22 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        id: build
+        run: npm run build 2>&1 | tee /tmp/build.log
+
+      # Логи Actions у приватных раннеров читает только авторизованный, а
+      # summary чек-рана доступен по API. Хвост сборки здесь экономит заход в
+      # веб-интерфейс, когда прод-деплой упал.
+      - name: Surface build failure
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          {
+            echo '## next build упал'
+            echo ''
+            echo '```'
+            tail -n 150 /tmp/build.log || echo '(лог пуст)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble standalone bundle
         run: |
