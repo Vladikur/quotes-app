@@ -164,6 +164,26 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
+      # ssh отдаёт 255 на любую свою ошибку — от несовпадения host key до
+      # отказа в аутентификации, и без -vvv они неразличимы. Проверяем связь
+      # отдельным шагом, чтобы не гадать по коду возврата шага деплоя.
+      - name: Check SSH connectivity
+        shell: bash
+        run: |
+          echo "== ключи в агенте (только отпечатки) =="
+          ssh-add -l || echo "(агент пуст)"
+          echo "== доверенные host keys =="
+          ssh-keygen -lf ~/.ssh/known_hosts || echo "(known_hosts пуст или битый)"
+
+          if ! out=$(ssh -vvv -o BatchMode=yes -o ConnectTimeout=15 \
+                "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+                'echo CONNECTED; id; hostname' 2>&1); then
+            msg=$(printf '%s' "$out" | tail -n 45 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::SSH не подключается:%0A$msg"
+            exit 1
+          fi
+          printf '%s\n' "$out" | tail -n 5
+
       - name: Prepare release directory
         run: |
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<EOF
