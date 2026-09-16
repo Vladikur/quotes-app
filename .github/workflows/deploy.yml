@@ -159,27 +159,43 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      # known_hosts строим сами под тот хост, к которому реально идём, и
-      # сверяем с прибитым отпечатком. Публичный ключ хоста — не секрет, а
-      # вот секрет DEPLOY_KNOWN_HOSTS был скопирован из quotes-frontend и
-      # оказался записан под другим именем хоста: ключи верные, а проверка
-      # падала с "Host key verification failed". Пин по отпечатку от этого
-      # класса ошибок избавляет и при этом остаётся защитой от подмены.
+      # known_hosts строим сами под фактический хост и сверяем с прибитым
+      # отпечатком: публичный ключ хоста не секрет, а секрет
+      # DEPLOY_KNOWN_HOSTS из quotes-frontend сюда не подходил.
+      #
+      # Путь к файлу задаём АБСОЛЮТНЫЙ и передаём его каждому ssh явно.
+      # OpenSSH раскрывает `~` через getpwuid, а не через $HOME, а GitHub в
+      # контейнерных джобах ставит HOME=/github/home. Из-за этого шелл писал
+      # known_hosts в одно место, а ssh искал в /root/.ssh — и падал с
+      # "Host key verification failed" при полностью верном ключе.
       - name: Trust server host key
         shell: bash
         env:
           EXPECTED_ED25519: SHA256:h1KJBruD9ApUMEGPUp8rfbf2AcXFUIuY1CrkT5RNVcw
         run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -t ed25519 "${{ secrets.DEPLOY_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
-          chmod 600 ~/.ssh/known_hosts
+          KH=/tmp/deploy_known_hosts
+          ssh-keyscan -t ed25519 "${{ secrets.DEPLOY_HOST }}" > "$KH" 2>/dev/null
+          chmod 600 "$KH"
 
-          got=$(ssh-keygen -lf ~/.ssh/known_hosts | awk '{print $2}' | head -1)
+          got=$(ssh-keygen -lf "$KH" | awk '{print $2}' | head -1)
           if [ "$got" != "$EXPECTED_ED25519" ]; then
             echo "::error::отпечаток host key не совпал.%0Aожидали $EXPECTED_ED25519%0Aполучили ${got:-<пусто>}"
             exit 1
           fi
           echo "host key сервера совпал с ожидаемым: $got"
+          echo "SSH_OPTS=-o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KH" >> "$GITHUB_ENV"
+
+      - name: Check SSH connectivity
+        shell: bash
+        run: |
+          if ! out=$(ssh $SSH_OPTS -o ConnectTimeout=15 \
+                "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+                'echo CONNECTED; hostname' 2>&1); then
+            msg=$(printf '%s' "$out" | sed -e 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::SSH не подключается:%0A$msg"
+            exit 1
+          fi
+          echo "$out"
 
       # Отпечаток host key совпадает, ключ в агенте верный, и всё равно
       # Host key verification failed. Вместо новых догадок — пробуем набор
@@ -224,7 +240,7 @@ jobs:
 
       - name: Prepare release directory
         run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<EOF
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<EOF
             set -euo pipefail
             RELEASE="${{ env.DEPLOY_ROOT }}/releases/${{ github.sha }}"
             mkdir -p "${{ env.DEPLOY_ROOT }}/releases" "${{ env.DEPLOY_ROOT }}/shared"
@@ -240,13 +256,13 @@ jobs:
 
       - name: Upload bundle
         run: |
-          rsync -az --delete \
+          rsync -az --delete -e "ssh $SSH_OPTS" \
             .next/standalone/ \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_ROOT }}/releases/${{ github.sha }}/"
 
       - name: Activate release
         run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<EOF
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" bash -s <<EOF
             set -euo pipefail
             ROOT="${{ env.DEPLOY_ROOT }}"
             RELEASE="\$ROOT/releases/${{ github.sha }}"
@@ -271,7 +287,7 @@ jobs:
       - name: Health check
         run: |
           for i in $(seq 1 20); do
-            code=$(ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            code=$(ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
               "curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/quotes \
                  -H 'Content-Type: application/json' -d '{\"limit\":1}'" || true)
             echo "attempt $i -> $code"
@@ -279,5 +295,5 @@ jobs:
             sleep 3
           done
           echo "Приложение не ответило 200 после деплоя" >&2
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "pm2 logs quotes-app --lines 50 --nostream" || true
+          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "pm2 logs quotes-app --lines 50 --nostream" || true
           exit 1
