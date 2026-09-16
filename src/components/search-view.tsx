@@ -338,7 +338,7 @@ export function SearchView() {
         </div>
       )}
 
-      <div className="mt-3 space-y-6" aria-busy={loading}>
+      <div className="mt-6 space-y-6" aria-busy={loading}>
         {showFirstLoadSkeleton ? (
           Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-40 w-full" />

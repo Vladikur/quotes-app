@@ -1,78 +1,78 @@
 # Quotes App
 
-Полнофункциональное приложение для поиска и управления коллекцией цитат на русском и английском языках. Объединяет бывшие `quotes-frontend` (Vue) и `quotes-backend` (Express) в одно приложение на Next.js (App Router).
+A full-featured application for searching and managing a collection of quotes in Russian and English. Merges the former `quotes-frontend` (Vue) and `quotes-backend` (Express) into a single Next.js (App Router) application.
 
-## Возможности
+## Features
 
-- **Семантический поиск** — AI-поиск по смыслу запроса (OpenAI `text-embedding-3-small` + косинусное сходство)
-- **Строгий поиск** — точное совпадение по нормализованной строке
-- **Двуязычный контент** — каждая цитата отображается на русском и английском одновременно
-- **Ролевой доступ** — `student` (только поиск) и `editor` (CRUD, массовая загрузка, поиск дублей)
-- **Тёмная/светлая тема** — переключение вручную или по системной настройке
-- **Локализация интерфейса** — RU/EN с сохранением выбора
+- **Semantic search** — AI-powered search by meaning (OpenAI `text-embedding-3-small` + cosine similarity)
+- **Strict search** — exact match on a normalized string
+- **Bilingual content** — every quote is shown in Russian and English at the same time
+- **Role-based access** — `student` (search only) and `editor` (CRUD, bulk upload, duplicate search)
+- **Dark/light theme** — manual toggle or system preference
+- **Interface localization** — RU/EN with the choice remembered
 
-## Архитектура
+## Architecture
 
-Приложение построено на Next.js App Router по слоистому принципу:
+The app is built on the Next.js App Router following a layered approach:
 
 ```
 src/
-├── app/                    # Маршруты (страницы + Route Handlers) — тонкий слой
+├── app/                    # Routes (pages + Route Handlers) — a thin layer
 │   ├── api/                #   REST API: /api/auth/*, /api/quotes/*
 │   ├── login/, bulk/, edit/[id]/, page.tsx
-│   └── layout.tsx          #   Провайдеры темы, i18n, авторизации
-├── components/             # UI-компоненты (shadcn/ui в components/ui + фичи)
-├── contexts/                # React-контексты (auth)
-├── i18n/                    # Лёгкий кастомный i18n-контекст (RU/EN)
+│   └── layout.tsx          #   Theme, i18n and auth providers
+├── components/             # UI components (shadcn/ui in components/ui + features)
+├── contexts/                # React contexts (auth)
+├── i18n/                    # Lightweight custom i18n context (RU/EN)
 └── lib/
-    ├── db.ts               #   Синглтон better-sqlite3
-    ├── auth/                #   JWT-сессии (jose), httpOnly-cookie, роли
-    ├── ai/                  #   OpenAI-клиент и построение эмбеддингов
-    ├── services/            #   Бизнес-логика поиска/CRUD цитат
-    ├── utils/               #   Чистые хелперы (cosine similarity, нормализация и т.д.)
-    └── api-client.ts        #   fetch-клиент для клиентских компонентов
+    ├── db.ts               #   better-sqlite3 singleton
+    ├── auth/                #   JWT sessions (jose), httpOnly cookie, roles
+    ├── ai/                  #   OpenAI client and embedding generation
+    ├── services/            #   Quote search/CRUD business logic
+    ├── utils/               #   Pure helpers (cosine similarity, normalization, etc.)
+    └── api-client.ts        #   fetch client for client components
 ```
 
-Route Handlers остаются тонкими и делегируют логику в `lib/services`, которые работают с `lib/db` и `lib/ai`. Данные загружаются на клиенте через `lib/api-client.ts` (Client Components + Route Handlers), а не через Server Actions — это ближе к прежней axios-архитектуре и не требует полной переработки страниц на серверный рендеринг.
+Route Handlers stay thin and delegate logic to `lib/services`, which works with `lib/db` and `lib/ai`. Data is loaded on the client via `lib/api-client.ts` (Client Components + Route Handlers) rather than Server Actions — this is closer to the previous axios-based architecture and avoids a full rewrite of the pages for server rendering.
 
-Маршрутизация и авторизация страниц защищены в `src/proxy.ts` (в Next.js 16 `middleware.ts` переименован в `proxy.ts`).
+Page routing and authorization are protected in `src/proxy.ts` (in Next.js 16, `middleware.ts` was renamed to `proxy.ts`).
 
-## Переменные окружения
+## Environment variables
 
-Скопируйте `.env.example` в `.env` и заполните:
+Copy `.env.example` to `.env` and fill in:
 
 ```env
-CHAT_GPT_API_KEY=sk-proj-...      # OpenAI API key для эмбеддингов
-JWT_SECRET=...                     # секрет для подписи сессионных JWT
-DB_PATH=./data/quotes.db           # путь к SQLite-базе
-AUTH_STUDENT_PASSWORD=presence     # пароль роли student
-AUTH_EDITOR_PASSWORD=presence      # пароль роли editor
+CHAT_GPT_API_KEY=sk-proj-...      # OpenAI API key for embeddings
+JWT_SECRET=...                     # secret used to sign session JWTs
+DB_PATH=./data/quotes.db           # path to the SQLite database
+AUTH_STUDENT_PASSWORD=presence     # password for the student role
+AUTH_EDITOR_PASSWORD=presence      # password for the editor role
 ```
 
-## Запуск
+## Getting started
 
 ```bash
 npm install
 npm run dev
 ```
 
-Откройте [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
-npm run build   # production-сборка
-npm run start   # production-сервер (next start — нужен постоянный диск для SQLite)
+npm run build   # production build
+npm run start   # production server (next start — requires a persistent disk for SQLite)
 npm run lint
 npm run format
 ```
 
-## Стек
+## Stack
 
-| Слой        | Технологии                               |
-| ----------- | ---------------------------------------- |
-| Фреймворк   | Next.js 16 (App Router), React 19        |
-| UI          | shadcn/ui, Tailwind CSS v4, lucide-react |
-| Тема        | next-themes (светлая/тёмная)             |
-| БД          | SQLite (`better-sqlite3`)                |
-| Авторизация | JWT в httpOnly-cookie (`jose`)           |
-| AI          | OpenAI Embeddings API                    |
-| Уведомления | sonner                                   |
+| Layer         | Technologies                             |
+| ------------- | ---------------------------------------- |
+| Framework     | Next.js 16 (App Router), React 19        |
+| UI            | shadcn/ui, Tailwind CSS v4, lucide-react |
+| Theme         | next-themes (light/dark)                 |
+| Database      | SQLite (`better-sqlite3`)                |
+| Auth          | JWT in an httpOnly cookie (`jose`)       |
+| AI            | OpenAI Embeddings API                    |
+| Notifications | sonner                                   |

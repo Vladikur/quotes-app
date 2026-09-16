@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import localFont from 'next/font/local'
 import Script from 'next/script'
 import './globals.css'
@@ -35,17 +35,24 @@ const lora = localFont({
 const GTM_ID = 'GTM-K3KT2MSK'
 
 export const metadata: Metadata = {
-  title: 'Цитаты',
+  title: 'Quotes',
   description:
-    'Поиск и управление коллекцией цитат на русском и английском языках',
+    'Search and manage a collection of quotes in Russian and English',
   manifest: '/site.webmanifest',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
   const session = await getSession()
 
   return (
-    <html lang="ru" suppressHydrationWarning className={lora.variable}>
+    <html lang="en" suppressHydrationWarning className={lora.variable}>
       <head>
         <Script id="gtm-loader" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
