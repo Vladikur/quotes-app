@@ -107,3 +107,22 @@ npm run format / format:check
 
 В CI нет отдельного шага линта — `next build` валит сборку на ошибках типов,
 а prettier/eslint гоняются локально (см. выше).
+
+### Как проверить сборку так, как её видит CI
+
+`next build` **исполняет** модули роут-хендлеров, когда собирает page data, а
+синглтоны в `lib/` создаются на верхнем уровне модуля. Поэтому сборка падает на
+том, чего в CI нет: `.env` и `data/` оба в `.gitignore`. Локально это не
+воспроизводится — файлы лежат на диске и Next сам подхватывает `.env`.
+
+Перед пушем изменений в `lib/` (особенно новых синглтонов) проверь так:
+
+```bash
+mv .env /tmp/env-parked && mv data /tmp/data-parked && rm -rf .next
+DB_PATH=/tmp/x.db CHAT_GPT_API_KEY=placeholder npm run build
+mv /tmp/env-parked .env && mv /tmp/data-parked data
+```
+
+Собралось и появился `.next/standalone` — CI тоже соберёт. Это дешевле, чем
+ловить ту же ошибку прогоном: каждый прогон ~4 минуты, из них половина —
+компиляция `better-sqlite3` из исходников.

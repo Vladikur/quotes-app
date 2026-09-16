@@ -72,11 +72,16 @@ jobs:
         shell: bash
         env:
           # next build исполняет модули роут-хендлеров, когда собирает page
-          # data, а db.ts открывает соединение с SQLite на верхнем уровне
-          # модуля. Боевой БД в CI нет и быть не должно, поэтому на время
-          # сборки подсовываем одноразовый файл в существующей директории —
-          # иначе better-sqlite3 падает с "directory does not exist".
+          # data. В lib/ синглтоны создаются на верхнем уровне модуля (db.ts
+          # открывает SQLite, openai-client.ts конструирует клиента), поэтому
+          # сборке нужны валидные с виду значения. Боевых секретов в CI нет и
+          # быть не должно — подставляем заглушки. В рантайме их перекрывает
+          # /var/www/quotes-app/shared/.env.production.
+          #
+          # Добавляешь новый синглтон в lib/ — проверь сборку без .env и без
+          # data/ (как это сделать, написано в CLAUDE.md, раздел «Деплой»).
           DB_PATH: /tmp/build-placeholder.db
+          CHAT_GPT_API_KEY: build-placeholder
         run: npm run build 2>&1 | tee /tmp/build.log
 
       # Логи Actions и summary джоба без авторизации не читаются, а
