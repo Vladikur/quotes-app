@@ -51,24 +51,40 @@ jobs:
           DB_PATH: /tmp/build-placeholder.db
         run: npm run build 2>&1 | tee /tmp/build.log
 
-      # Логи Actions у приватных раннеров читает только авторизованный, а
-      # summary чек-рана доступен по API. Хвост сборки здесь экономит заход в
-      # веб-интерфейс, когда прод-деплой упал.
+      # Логи Actions и summary джоба без авторизации не читаются, а
+      # аннотации чек-рана — читаются. Поэтому хвост упавшей сборки уезжает
+      # именно в аннотацию: иначе причина падения прод-деплоя видна только
+      # тому, кто залогинен в GitHub.
       - name: Surface build failure
         if: failure() && steps.build.outcome == 'failure'
         run: |
-          {
-            echo '## next build упал'
-            echo ''
-            echo '```'
-            tail -n 150 /tmp/build.log || echo '(лог пуст)'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          msg=$(tail -n 60 /tmp/build.log | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error::next build упал:%0A$msg"
+
+      - name: Inspect build output
+        run: |
+          info=$(
+            {
+              echo "--- .next ---";            ls -1 .next 2>&1
+              echo "--- .next/standalone ---"; ls -1 .next/standalone 2>&1
+              echo "--- .next/static ---";     ls -1 .next/static 2>&1
+            } | sed ':a;N;$!ba;s/\n/%0A/g'
+          )
+          echo "::notice::$info"
 
       - name: Assemble standalone bundle
         run: |
+          dump() {
+            m=$( { echo "сборка бандла упала"; ls -la .next .next/standalone 2>&1 | head -60; } \
+                 | sed ':a;N;$!ba;s/\n/%0A/g' )
+            echo "::error::$m"
+          }
+          trap dump ERR
+
           # server.js ожидает static и public рядом с собой — next их
           # намеренно не копирует (рассчитывает на CDN), у нас CDN нет.
+          mkdir -p .next/standalone/.next
+          rm -rf .next/standalone/.next/static .next/standalone/public
           cp -r .next/static .next/standalone/.next/static
           if [ -d public ]; then cp -r public .next/standalone/public; fi
           cp ecosystem.config.js .next/standalone/ecosystem.config.js
