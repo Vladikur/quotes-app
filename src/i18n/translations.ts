@@ -17,7 +17,9 @@ export interface TranslationDict {
   bulkUpload: {
     title: string
     hint: string
+    placeholder: string
     upload: string
+    previewTitle: string
   }
   editQuote: {
     title: string
@@ -53,8 +55,6 @@ export interface TranslationDict {
     loadQuotesFailed: string
     unknown: string
     invalidJson: string
-    jsonArrayExpected: string
-    requiredFieldInvalid: string
     loginFailed: string
     fillAllFields: string
   }
@@ -102,8 +102,10 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
     },
     bulkUpload: {
       title: 'Добавление новых цитат',
-      hint: 'Вставьте JSON-массив объектов с цитатами',
-      upload: 'Загрузить',
+      hint: 'Вставьте текст цитат — AI структурирует их по шаблону и добавит на сайт',
+      placeholder: 'Вставьте текст цитат сюда...',
+      upload: 'Добавить цитаты',
+      previewTitle: 'Что было добавлено',
     },
     editQuote: {
       title: 'Обновление цитаты',
@@ -139,8 +141,6 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       loadQuotesFailed: 'Не удалось загрузить цитаты',
       unknown: 'Произошла ошибка',
       invalidJson: 'Некорректный JSON. Проверьте синтаксис',
-      jsonArrayExpected: 'Ожидается JSON-массив объектов',
-      requiredFieldInvalid: 'обязательно и должно быть строкой',
       loginFailed: 'Неверный логин или пароль',
       fillAllFields: 'Заполните все поля',
     },
@@ -186,8 +186,10 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
     },
     bulkUpload: {
       title: 'Add new quotes',
-      hint: 'Paste a JSON array of quote objects',
-      upload: 'Upload',
+      hint: 'Paste the quotes text — AI will structure it using the template and add it to the site',
+      placeholder: 'Paste the quotes text here...',
+      upload: 'Add quotes',
+      previewTitle: 'What was added',
     },
     editQuote: {
       title: 'Edit quote',
@@ -223,8 +225,6 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       loadQuotesFailed: 'Failed to load quotes',
       unknown: 'An error occurred',
       invalidJson: 'Invalid JSON. Please check the syntax',
-      jsonArrayExpected: 'A JSON array of objects is expected',
-      requiredFieldInvalid: 'is required and must be a string',
       loginFailed: 'Invalid username or password',
       fillAllFields: 'Please fill in all fields',
     },

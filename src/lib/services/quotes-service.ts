@@ -1,6 +1,7 @@
 import 'server-only'
 import { db } from '../db'
 import { embedString } from '../ai/embed-string'
+import { structureQuotesText } from '../ai/structure-quotes'
 import {
   buildEmbeddingsBatchRu,
   buildEmbeddingsBatchEn,
@@ -314,4 +315,50 @@ export async function bulkInsertQuotes(
   resetQuotesEmbeddingsCache()
 
   return { addedCount, skippedCount }
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+export async function structureQuotesFromText(
+  rawText: string,
+): Promise<QuoteInput[]> {
+  let parsed: unknown
+
+  try {
+    parsed = await structureQuotesText(rawText)
+  } catch {
+    throw new Error('AI did not return valid JSON')
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('AI response is not a JSON array')
+  }
+
+  return parsed.map((item, index) => {
+    const record = item as Record<string, unknown>
+
+    for (const field of [
+      'author_en',
+      'author_ru',
+      'text_en',
+      'text_ru',
+    ] as const) {
+      if (!record[field] || typeof record[field] !== 'string') {
+        throw new Error(`Quote ${index + 1}: "${field}" is required`)
+      }
+    }
+
+    return {
+      author_en: record.author_en as string,
+      author_ru: record.author_ru as string,
+      text_en: record.text_en as string,
+      text_ru: record.text_ru as string,
+      source_en: optionalString(record.source_en),
+      source_ru: optionalString(record.source_ru),
+      robert_comment_en: optionalString(record.robert_comment_en),
+      robert_comment_ru: optionalString(record.robert_comment_ru),
+    }
+  })
 }

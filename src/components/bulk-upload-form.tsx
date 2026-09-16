@@ -7,59 +7,32 @@ import { Loader2 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n/context'
-import { uploadQuotesApi } from '@/lib/api-client'
+import { structureQuotesApi, uploadQuotesApi } from '@/lib/api-client'
 import type { QuoteInput } from '@/lib/types'
-
-const REQUIRED_FIELDS = [
-  'author_en',
-  'author_ru',
-  'text_en',
-  'text_ru',
-] as const
-
-function validateQuotes(
-  data: unknown,
-  t: (
-    key: 'errors.jsonArrayExpected' | 'errors.requiredFieldInvalid',
-  ) => string,
-): asserts data is QuoteInput[] {
-  if (!Array.isArray(data)) {
-    throw new Error(t('errors.jsonArrayExpected'))
-  }
-
-  data.forEach((item) => {
-    const record = item as Record<string, unknown>
-
-    REQUIRED_FIELDS.forEach((field) => {
-      if (!record[field] || typeof record[field] !== 'string') {
-        throw new Error(`"${field}" ${t('errors.requiredFieldInvalid')}`)
-      }
-    })
-  })
-}
 
 export function BulkUploadForm() {
   const { t } = useI18n()
-  const [rawInput, setRawInput] = useState('')
+  const [rawText, setRawText] = useState('')
+  const [structured, setStructured] = useState<QuoteInput[] | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function onUpload() {
+  async function onSubmit() {
     setLoading(true)
+    setStructured(null)
 
     try {
-      let parsed: unknown
+      const structureRes = await structureQuotesApi(rawText)
 
-      try {
-        parsed = JSON.parse(rawInput)
-      } catch {
-        throw new Error(t('errors.invalidJson'))
+      if (!structureRes.success || !structureRes.data) {
+        toast.error(structureRes.message ?? t('errors.unknown'))
+        return
       }
 
-      validateQuotes(parsed, t)
+      setStructured(structureRes.data)
 
-      const res = await uploadQuotesApi(parsed)
-      if (res.success) toast.success(res.message)
-      else toast.error(res.message)
+      const uploadRes = await uploadQuotesApi(structureRes.data)
+      if (uploadRes.success) toast.success(uploadRes.message)
+      else toast.error(uploadRes.message)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('errors.unknown'))
     } finally {
@@ -82,19 +55,30 @@ export function BulkUploadForm() {
       </p>
 
       <Textarea
-        value={rawInput}
-        onChange={(e) => setRawInput(e.target.value)}
-        placeholder={`[\n  {\n    "author_en": "...",\n    "author_ru": "...",\n    "text_en": "...",\n    "text_ru": "..."\n  }\n]`}
+        value={rawText}
+        onChange={(e) => setRawText(e.target.value)}
+        placeholder={t('bulkUpload.placeholder')}
         rows={16}
-        className="mt-3 font-mono text-sm"
+        className="mt-3 text-sm"
       />
 
       <div className="mt-4 flex justify-end">
-        <Button onClick={onUpload} disabled={loading}>
+        <Button onClick={onSubmit} disabled={loading || !rawText.trim()}>
           {loading && <Loader2 className="size-4 animate-spin" />}
           {t('bulkUpload.upload')}
         </Button>
       </div>
+
+      {structured && (
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">
+            {t('bulkUpload.previewTitle')}
+          </p>
+          <pre className="mt-2 max-h-96 overflow-auto rounded-md border bg-muted p-3 text-xs">
+            {JSON.stringify(structured, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   )
 }

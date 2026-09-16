@@ -79,3 +79,13 @@ export function uploadQuotesApi(quotes: QuoteInput[]) {
     body: JSON.stringify({ quotes }),
   })
 }
+
+export function structureQuotesApi(text: string) {
+  return apiFetch<{ success: boolean; message?: string; data?: QuoteInput[] }>(
+    '/api/quotes/structure',
+    {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    },
+  )
+}
