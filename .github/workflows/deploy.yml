@@ -42,6 +42,13 @@ jobs:
 
       - name: Build
         id: build
+        env:
+          # next build исполняет модули роут-хендлеров, когда собирает page
+          # data, а db.ts открывает соединение с SQLite на верхнем уровне
+          # модуля. Боевой БД в CI нет и быть не должно, поэтому на время
+          # сборки подсовываем одноразовый файл в существующей директории —
+          # иначе better-sqlite3 падает с "directory does not exist".
+          DB_PATH: /tmp/build-placeholder.db
         run: npm run build 2>&1 | tee /tmp/build.log
 
       # Логи Actions у приватных раннеров читает только авторизованный, а
