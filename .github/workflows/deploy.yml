@@ -113,53 +113,46 @@ jobs:
           )
           echo "::notice::$info"
 
-      - name: Assemble standalone bundle
-        run: |
-          dump() {
-            m=$( { echo "сборка бандла упала"; ls -la .next .next/standalone 2>&1 | head -60; } \
-                 | sed ':a;N;$!ba;s/\n/%0A/g' )
-            echo "::error::$m"
-          }
-          trap dump ERR
-
-          # server.js ожидает static и public рядом с собой — next их
-          # намеренно не копирует (рассчитывает на CDN), у нас CDN нет.
-          mkdir -p .next/standalone/.next
-          rm -rf .next/standalone/.next/static .next/standalone/public
-          cp -r .next/static .next/standalone/.next/static
-          if [ -d public ]; then cp -r public .next/standalone/public; fi
-          cp ecosystem.config.js .next/standalone/ecosystem.config.js
-          du -sh .next/standalone
-
-      # Если бинарник грузится здесь, на glibc 2.31, то и на проде (тоже
-      # 2.31) он загрузится. Это и есть настоящая проверка совместимости.
-      - name: Verify native module matches target glibc
+      # Сборка бандла и проверка нативного модуля — одним шагом. Всё идёт
+      # в подоболочку с set -e, её код возврата проверяется явно, а лог
+      # целиком уезжает в аннотацию. Ловушки ERR и pipefail тут уже дважды
+      # давали ложную картину: шаг падал раньше, чем успевал что-то сказать.
+      - name: Assemble and verify bundle
         shell: bash
         run: |
-          esc() { sed ':a;N;$!ba;s/\n/%0A/g'; }
-          PKG=.next/standalone/node_modules/better-sqlite3
+          (
+            set -e
+            echo "== .next ==";               ls -1 .next
+            echo "== .next/standalone ==";    ls -1a .next/standalone
 
-          listing=$(find "$PKG" -type f 2>&1 | head -30 | esc)
-          echo "::notice::better-sqlite3 в бандле:%0A$listing"
+            # server.js ждёт static и public рядом с собой — next их не
+            # копирует, рассчитывая на CDN, а CDN у нас нет.
+            mkdir -p .next/standalone/.next
+            rm -rf .next/standalone/.next/static .next/standalone/public
+            cp -r .next/static .next/standalone/.next/static
+            if [ -d public ]; then cp -r public .next/standalone/public; fi
+            cp ecosystem.config.js .next/standalone/ecosystem.config.js
+            echo "== размер бандла =="; du -sh .next/standalone
 
-          BIN=$(find "$PKG" -name '*.node' 2>/dev/null | head -1)
-          if [ -z "$BIN" ]; then
-            echo "::error::в бандле нет нативного бинарника better-sqlite3"
+            echo "== better-sqlite3 в бандле =="
+            find .next/standalone/node_modules/better-sqlite3 -type f
+
+            # Грузится здесь, на glibc 2.31 — значит загрузится и на проде,
+            # у него та же 2.31. Это и есть проверка совместимости.
+            echo "== проверка загрузки =="
+            node -e "
+              const p = require.resolve('better-sqlite3', { paths: ['.next/standalone'] });
+              const db = new (require(p))(':memory:');
+              console.log('select 1 ->', db.prepare('select 1 as ok').get().ok);
+            "
+          ) > /tmp/asm.log 2>&1
+          rc=$?
+          cat /tmp/asm.log
+          if [ "$rc" -ne 0 ]; then
+            msg=$(tail -n 60 /tmp/asm.log | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::сборка/проверка бандла упала (код $rc):%0A$msg"
             exit 1
           fi
-          # grep без совпадений возвращает 1, а шаг идёт под pipefail.
-          glibc=$(strings "$BIN" | grep -o 'GLIBC_2\.[0-9]*' | sort -uV | tail -1 || true)
-          echo "бинарник: $BIN, максимальный требуемый glibc: $glibc"
-
-          if ! out=$(node -e "
-            const p = require.resolve('better-sqlite3', { paths: ['.next/standalone'] });
-            const db = new (require(p))(':memory:');
-            console.log('select 1 ->', db.prepare('select 1 as ok').get().ok);
-          " 2>&1); then
-            echo "::error::better-sqlite3 не грузится из бандла ($BIN, glibc $glibc):%0A$(printf '%s' "$out" | esc)"
-            exit 1
-          fi
-          echo "$out"
 
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
