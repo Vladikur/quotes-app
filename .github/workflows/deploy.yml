@@ -165,24 +165,37 @@ jobs:
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
       # ssh отдаёт 255 на любую свою ошибку — от несовпадения host key до
-      # отказа в аутентификации, и без -vvv они неразличимы. Проверяем связь
-      # отдельным шагом, чтобы не гадать по коду возврата шага деплоя.
+      # отказа в аутентификации, и по коду шага они неразличимы. Целиком
+      # вывод -vvv в аннотацию не лезет, поэтому вытаскиваем решающие строки
+      # и экранируем % — иначе workflow-команда ломается на полпути.
       - name: Check SSH connectivity
         shell: bash
         run: |
-          echo "== ключи в агенте (только отпечатки) =="
-          ssh-add -l || echo "(агент пуст)"
-          echo "== доверенные host keys =="
-          ssh-keygen -lf ~/.ssh/known_hosts || echo "(known_hosts пуст или битый)"
+          esc() { sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g'; }
 
-          if ! out=$(ssh -vvv -o BatchMode=yes -o ConnectTimeout=15 \
-                "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-                'echo CONNECTED; id; hostname' 2>&1); then
-            msg=$(printf '%s' "$out" | tail -n 45 | sed ':a;N;$!ba;s/\n/%0A/g')
+          agent=$(ssh-add -l 2>&1 || true)
+          hosts=$(ssh-keygen -lf ~/.ssh/known_hosts 2>&1 || true)
+
+          if out=$(ssh -vvv -o BatchMode=yes -o ConnectTimeout=15 \
+                   "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+                   'echo CONNECTED' 2>&1); then rc=0; else rc=$?; fi
+
+          key=$(printf '%s\n' "$out" | grep -aE 'Offering public key|Server accepts key|Authenticated to|Authentications that can continue|Permission denied|Host key verification|REMOTE HOST IDENT|Connection (refused|timed out|closed)|kex_exchange|No more authentication methods|Connecting to' | tail -n 12 || true)
+
+          {
+            echo "rc=$rc"
+            echo "-- ключи в агенте (отпечатки) --"; printf '%s\n' "$agent"
+            echo "-- доверенные host keys --";       printf '%s\n' "$hosts"
+            echo "-- ход подключения --";            printf '%s\n' "$key"
+          } > /tmp/sshdiag.txt
+          cat /tmp/sshdiag.txt
+
+          msg=$(esc < /tmp/sshdiag.txt)
+          if [ "$rc" -ne 0 ]; then
             echo "::error::SSH не подключается:%0A$msg"
             exit 1
           fi
-          printf '%s\n' "$out" | tail -n 5
+          echo "::notice::SSH ок:%0A$msg"
 
       - name: Prepare release directory
         run: |
