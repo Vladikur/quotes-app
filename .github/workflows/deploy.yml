@@ -159,10 +159,27 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
+      # known_hosts строим сами под тот хост, к которому реально идём, и
+      # сверяем с прибитым отпечатком. Публичный ключ хоста — не секрет, а
+      # вот секрет DEPLOY_KNOWN_HOSTS был скопирован из quotes-frontend и
+      # оказался записан под другим именем хоста: ключи верные, а проверка
+      # падала с "Host key verification failed". Пин по отпечатку от этого
+      # класса ошибок избавляет и при этом остаётся защитой от подмены.
       - name: Trust server host key
+        shell: bash
+        env:
+          EXPECTED_ED25519: SHA256:h1KJBruD9ApUMEGPUp8rfbf2AcXFUIuY1CrkT5RNVcw
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -t ed25519 "${{ secrets.DEPLOY_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+          got=$(ssh-keygen -lf ~/.ssh/known_hosts | awk '{print $2}' | head -1)
+          if [ "$got" != "$EXPECTED_ED25519" ]; then
+            echo "::error::отпечаток host key не совпал.%0Aожидали $EXPECTED_ED25519%0Aполучили ${got:-<пусто>}"
+            exit 1
+          fi
+          echo "host key сервера совпал с ожидаемым: $got"
 
       # ssh отдаёт 255 на любую свою ошибку — от несовпадения host key до
       # отказа в аутентификации, и по коду шага они неразличимы. Целиком
