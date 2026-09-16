@@ -243,16 +243,39 @@ jobs:
             ls -1dt "\$ROOT"/releases/*/ | tail -n +4 | xargs -r rm -rf
           EOF
 
+      # Проверять один лишь код 200 недостаточно: при первом успешном
+      # деплое порт 3000 держал ещё старый Express, он и отвечал 200, пока
+      # новый процесс крутился в цикле перезапуска с EADDRINUSE. Поэтому
+      # сверяем три независимые вещи: что процесс поднят и это ИМЕННО наш
+      # релиз, что отвечает Next, и что API отдаёт данные из БД.
       - name: Health check
+        shell: bash
         run: |
+          H="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
           for i in $(seq 1 20); do
-            code=$(ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-              "curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/quotes \
-                 -H 'Content-Type: application/json' -d '{\"limit\":1}'" || true)
-            echo "attempt $i -> $code"
-            [ "$code" = "200" ] && exit 0
+            out=$(ssh $SSH_OPTS "$H" '
+              curl -s -D /tmp/hdr -o /dev/null http://127.0.0.1:3000/ || true
+              grep -i "^x-powered-by" /tmp/hdr | tr -d "\r" || true
+              curl -s -X POST http://127.0.0.1:3000/api/quotes \
+                   -H "Content-Type: application/json" -d "{\"limit\":1}" \
+                | head -c 40 || true
+              echo
+              readlink -f '"${{ env.DEPLOY_ROOT }}"'/current
+            ' 2>&1 || true)
+
+            powered=no; api=no; rel=no
+            printf "%s" "$out" | grep -qi "Next.js"                    && powered=yes
+            printf "%s" "$out" | grep -q  "\"success\":true"           && api=yes
+            printf "%s" "$out" | grep -q  "${{ github.sha }}"          && rel=yes
+            echo "попытка $i: Next=$powered API=$api релиз=$rel"
+
+            if [ "$powered$api$rel" = "yesyesyes" ]; then
+              echo "деплой подтверждён: отвечает Next.js, API отдаёт данные, current указывает на ${{ github.sha }}"
+              exit 0
+            fi
             sleep 3
           done
-          echo "Приложение не ответило 200 после деплоя" >&2
-          ssh $SSH_OPTS "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "pm2 logs quotes-app --lines 50 --nostream" || true
+
+          echo "::error::после деплоя приложение не подтвердилось (Next=$powered API=$api релиз=$rel)"
+          ssh $SSH_OPTS "$H" "pm2 list; pm2 logs quotes-app --lines 40 --nostream" || true
           exit 1
