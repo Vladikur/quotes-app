@@ -27,6 +27,7 @@ jobs:
           apt-get update -qq
           apt-get install -y --no-install-recommends \
             rsync openssh-client python3 make g++
+          npm install -g node-gyp@latest
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,8 +50,17 @@ jobs:
       - name: Rebuild better-sqlite3 from source
         shell: bash
         run: |
+          dump() {
+            m=$(tail -n 40 /tmp/gyp.log 2>/dev/null | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::сборка better-sqlite3 упала:%0A$m"
+          }
+          trap dump ERR
+
+          # У better-sqlite3 13.x НЕТ install-скрипта, поэтому `npm rebuild`
+          # для него молча не делает ничего. Собираем его собственным
+          # скриптом build-release — он зовёт node-gyp с --force_build=1.
           rm -rf node_modules/better-sqlite3/prebuilds
-          npm rebuild better-sqlite3 --build-from-source
+          ( cd node_modules/better-sqlite3 && npm run build-release ) 2>&1 | tee /tmp/gyp.log
           ls -la node_modules/better-sqlite3/build/Release/better_sqlite3.node
 
       - name: Build
