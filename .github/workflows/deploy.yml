@@ -181,38 +181,46 @@ jobs:
           fi
           echo "host key сервера совпал с ожидаемым: $got"
 
-      # ssh отдаёт 255 на любую свою ошибку — от несовпадения host key до
-      # отказа в аутентификации, и по коду шага они неразличимы. Целиком
-      # вывод -vvv в аннотацию не лезет, поэтому вытаскиваем решающие строки
-      # и экранируем % — иначе workflow-команда ломается на полпути.
+      # Отпечаток host key совпадает, ключ в агенте верный, и всё равно
+      # Host key verification failed. Вместо новых догадок — пробуем набор
+      # вариантов за один прогон и смотрим, какой проходит.
       - name: Check SSH connectivity
         shell: bash
         run: |
           esc() { sed -e 's/%/%25/g' -e 's/\r//g' | sed ':a;N;$!ba;s/\n/%0A/g'; }
+          HOST='${{ secrets.DEPLOY_HOST }}'
+          USER='${{ secrets.DEPLOY_USER }}'
 
-          agent=$(ssh-add -l 2>&1 || true)
-          hosts=$(ssh-keygen -lf ~/.ssh/known_hosts 2>&1 || true)
-
-          if out=$(ssh -vvv -o BatchMode=yes -o ConnectTimeout=15 \
-                   "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-                   'echo CONNECTED' 2>&1); then rc=0; else rc=$?; fi
-
-          key=$(printf '%s\n' "$out" | grep -aE 'Offering public key|Server accepts key|Authenticated to|Authentications that can continue|Permission denied|Host key verification|REMOTE HOST IDENT|Connection (refused|timed out|closed)|kex_exchange|No more authentication methods|Connecting to' | tail -n 12 || true)
+          try() {
+            desc="$1"; shift
+            if ssh -o BatchMode=yes -o ConnectTimeout=10 "$@" "$USER@$HOST" 'echo ok' >/dev/null 2>&1
+            then echo "OK    $desc"; else echo "FAIL  $desc"; fi
+          }
 
           {
-            echo "rc=$rc"
-            echo "-- ключи в агенте (отпечатки) --"; printf '%s\n' "$agent"
-            echo "-- доверенные host keys --";       printf '%s\n' "$hosts"
-            echo "-- ход подключения --";            printf '%s\n' "$key"
-          } > /tmp/sshdiag.txt
-          cat /tmp/sshdiag.txt
+            # Длина и «похоже на IP или на домен» — про содержимое секрета
+            # ничего не выдают, но ловят лишние пробелы и перевод строки.
+            echo "длина DEPLOY_HOST: ${#HOST}, DEPLOY_USER: ${#USER}"
+            case "$HOST" in
+              *[a-zA-Z]*) echo "DEPLOY_HOST похож на доменное имя" ;;
+              *)          echo "DEPLOY_HOST похож на IP" ;;
+            esac
+            echo "-- known_hosts --"
+            awk '{print "поле хоста длиной " length($1) ", тип " $2}' ~/.ssh/known_hosts
+            if ssh-keygen -F "$HOST" -f ~/.ssh/known_hosts >/dev/null 2>&1
+            then echo "запись для DEPLOY_HOST: НАЙДЕНА"
+            else echo "запись для DEPLOY_HOST: НЕ найдена"; fi
 
-          msg=$(esc < /tmp/sshdiag.txt)
-          if [ "$rc" -ne 0 ]; then
-            echo "::error::SSH не подключается:%0A$msg"
-            exit 1
-          fi
-          echo "::notice::SSH ок:%0A$msg"
+            echo "-- варианты подключения --"
+            try "как есть"
+            try "CheckHostIP=no"              -o CheckHostIP=no
+            try "accept-new"                  -o StrictHostKeyChecking=accept-new
+            try "свой known_hosts из keyscan" -o CheckHostIP=no \
+                -o UserKnownHostsFile=/tmp/kh
+          } > /tmp/sshdiag.txt 2>&1
+          cat /tmp/sshdiag.txt
+          echo "::error::диагностика SSH:%0A$(esc < /tmp/sshdiag.txt)"
+          exit 1
 
       - name: Prepare release directory
         run: |
