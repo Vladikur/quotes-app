@@ -12,7 +12,29 @@ const dbPath = path.resolve(
   process.env.DB_PATH ?? './data/quotes.db',
 )
 
-export const db = globalForDb.db ?? new Database(dbPath)
+export const db = globalForDb.db ?? openDb()
+
+function openDb(): Database.Database {
+  const conn = new Database(dbPath)
+
+  // Без индекса список «без поиска» (ORDER BY created_at) сканирует всю
+  // таблицу, а created_at лежит после блобов эмбеддингов — SQLite проходит
+  // их overflow-страницы и читает почти весь файл. На холодном page cache
+  // VPS это секунды. Таблицы может не быть: в CI next build открывает
+  // пустую БД-заглушку.
+  const hasQuotes = conn
+    .prepare(
+      `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'quotes'`,
+    )
+    .get()
+  if (hasQuotes) {
+    conn.exec(
+      'CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at)',
+    )
+  }
+
+  return conn
+}
 
 if (process.env.NODE_ENV !== 'production') {
   globalForDb.db = db
