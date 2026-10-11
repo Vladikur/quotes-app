@@ -2,8 +2,14 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { LogIn, LogOut } from 'lucide-react'
+import { LogIn, LogOut, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { LanguageToggle } from '@/components/language-toggle'
 import { useI18n } from '@/i18n/context'
@@ -28,6 +34,15 @@ export function AppHeader() {
             {t('header.appName')}
           </span>
         </Link>
+
+        <nav className="hidden items-center gap-4 lg:flex">
+          <Link
+            href="/conscious-beings"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t('header.consciousBeings')}
+          </Link>
+        </nav>
 
         <div className="ml-auto flex items-center gap-2">
           <LanguageToggle />
@@ -55,6 +70,26 @@ export function AppHeader() {
               </Link>
             </Button>
           )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={t('header.menu')}
+                className="lg:hidden"
+              >
+                <Menu className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/conscious-beings">
+                  {t('header.consciousBeings')}
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -39,6 +39,14 @@ export interface TranslationDict {
     logIn: string
     logOut: string
     appName: string
+    menu: string
+    consciousBeings: string
+  }
+  consciousBeings: {
+    title: string
+    name: string
+    year: string
+    category: string
   }
   theme: {
     light: string
@@ -125,6 +133,14 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       logIn: 'Войти',
       logOut: 'Выйти',
       appName: 'Цитаты',
+      menu: 'Меню',
+      consciousBeings: 'Сознательные существа',
+    },
+    consciousBeings: {
+      title: 'Сознательные существа',
+      name: 'Имя',
+      year: 'Год',
+      category: 'Категория',
     },
     theme: {
       light: 'Светлая',
@@ -209,6 +225,14 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       logIn: 'Log in',
       logOut: 'Logout',
       appName: 'Quotes',
+      menu: 'Menu',
+      consciousBeings: 'Conscious Beings',
+    },
+    consciousBeings: {
+      title: 'Conscious Beings',
+      name: 'Name',
+      year: 'Year',
+      category: 'Category',
     },
     theme: {
       light: 'Light',
