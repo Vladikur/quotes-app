@@ -58,6 +58,7 @@ function loadQuotesWithEmbeddings() {
           source_ru,
           robert_comment_en,
           robert_comment_ru,
+          conscious_being,
           created_at,
           embedding_en_blob,
           embedding_ru_blob

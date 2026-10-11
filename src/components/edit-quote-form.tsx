@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useI18n } from '@/i18n/context'
 import { fetchQuoteById, updateQuoteApi } from '@/lib/api-client'
 
@@ -15,6 +16,7 @@ export function EditQuoteForm({ quoteId }: { quoteId: string }) {
   const router = useRouter()
 
   const [rawInput, setRawInput] = useState('')
+  const [consciousBeing, setConsciousBeing] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -34,7 +36,10 @@ export function EditQuoteForm({ quoteId }: { quoteId: string }) {
           source_ru,
           robert_comment_en,
           robert_comment_ru,
+          conscious_being,
         } = res.data
+
+        setConsciousBeing(conscious_being === 1)
 
         setRawInput(
           JSON.stringify(
@@ -75,7 +80,10 @@ export function EditQuoteForm({ quoteId }: { quoteId: string }) {
     setLoading(true)
 
     try {
-      const res = await updateQuoteApi(quoteId, parsed)
+      const res = await updateQuoteApi(quoteId, {
+        ...parsed,
+        conscious_being: consciousBeing ? 1 : 0,
+      })
 
       if (res.success) toast.success(res.message)
       else toast.error(res.message)
@@ -105,6 +113,14 @@ export function EditQuoteForm({ quoteId }: { quoteId: string }) {
         rows={16}
         className="mt-4 font-mono text-sm"
       />
+
+      <label className="mt-4 flex w-fit items-center gap-2 text-sm">
+        <Checkbox
+          checked={consciousBeing}
+          onCheckedChange={(v) => setConsciousBeing(v === true)}
+        />
+        {t('actions.consciousBeing')}
+      </label>
 
       <div className="mt-4 flex justify-end">
         <Button onClick={onUpdate} disabled={loading}>

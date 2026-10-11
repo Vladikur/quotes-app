@@ -2,11 +2,16 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Copy, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +58,10 @@ export function QuoteCard({
     setPrevLang(lang)
     setOverride(null)
   }
+
+  // Radix-тултип по тапу не открывается (тач не даёт hover), поэтому
+  // состояние держим сами: тап открывает, тап снаружи закрывает.
+  const [beingTipOpen, setBeingTipOpen] = useState(false)
 
   const cardLang = override ?? lang
   const otherLang: Lang = cardLang === 'ru' ? 'en' : 'ru'
@@ -143,6 +152,23 @@ export function QuoteCard({
 
       <div className="relative space-y-2">
         <div className="absolute top-0 right-0 flex items-center gap-1">
+          {quote.conscious_being === 1 && (
+            <Tooltip open={beingTipOpen} onOpenChange={setBeingTipOpen}>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  role="img"
+                  onClick={() => setBeingTipOpen(true)}
+                  aria-label={t('actions.consciousBeing')}
+                  className="inline-flex size-7 items-center justify-center text-muted-foreground"
+                >
+                  <Sparkles className="size-4" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('actions.consciousBeing')}</TooltipContent>
+            </Tooltip>
+          )}
+
           <Button
             variant="ghost"
             size="icon-sm"
@@ -166,7 +192,7 @@ export function QuoteCard({
           </Button>
         </div>
 
-        <div className="pr-20">
+        <div className="pr-28">
           <h4 className="font-medium">{author}</h4>
           {source && <p className="text-sm text-muted-foreground">{source}</p>}
         </div>

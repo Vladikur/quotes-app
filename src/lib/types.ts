@@ -8,6 +8,8 @@ export interface Quote {
   source_ru: string | null
   robert_comment_en: string | null
   robert_comment_ru: string | null
+  /** 1 — автор входит в список «Сознательных существ», 0 — нет. */
+  conscious_being: number
   created_at: string
 }
 
@@ -34,4 +36,6 @@ export interface QuoteInput {
   source_ru?: string | null
   robert_comment_en?: string | null
   robert_comment_ru?: string | null
+  /** Не передан — значение в БД не меняется. */
+  conscious_being?: number
 }

@@ -76,6 +76,7 @@ export interface TranslationDict {
     cancel: string
     copyQuote: string
     switchQuoteLang: string
+    consciousBeing: string
   }
   confirm: {
     deleteQuote: string
@@ -171,6 +172,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       cancel: 'Отмена',
       copyQuote: 'Копировать цитату',
       switchQuoteLang: 'Показать цитату на другом языке',
+      consciousBeing: 'Сознательное существо',
     },
     confirm: {
       deleteQuote: 'Вы уверены, что хотите удалить цитату?',
@@ -264,6 +266,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       cancel: 'Cancel',
       copyQuote: 'Copy quote',
       switchQuoteLang: 'Show this quote in another language',
+      consciousBeing: 'Conscious being',
     },
     confirm: {
       deleteQuote: 'Are you sure you want to delete this quote?',

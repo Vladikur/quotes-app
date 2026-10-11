@@ -30,6 +30,7 @@ const QUOTE_COLUMNS = `
     source_ru,
     robert_comment_en,
     robert_comment_ru,
+    conscious_being,
     created_at
 `
 
@@ -133,6 +134,7 @@ export async function searchQuotes({
         source_ru: q.source_ru,
         robert_comment_en: q.robert_comment_en,
         robert_comment_ru: q.robert_comment_ru,
+        conscious_being: q.conscious_being,
         created_at: q.created_at,
         score,
       }
@@ -174,6 +176,7 @@ export async function updateQuote(
     source_ru = null,
     robert_comment_en = null,
     robert_comment_ru = null,
+    conscious_being,
   } = input
 
   const [embeddingRu, embeddingEn] = await Promise.all([
@@ -193,6 +196,7 @@ export async function updateQuote(
         source_ru = @source_ru,
         robert_comment_en = @robert_comment_en,
         robert_comment_ru = @robert_comment_ru,
+        conscious_being = COALESCE(@conscious_being, conscious_being),
         embedding_en_blob = @embedding_en_blob,
         embedding_ru_blob = @embedding_ru_blob
     WHERE id = @id
@@ -207,6 +211,8 @@ export async function updateQuote(
     source_ru,
     robert_comment_en,
     robert_comment_ru,
+    conscious_being:
+      conscious_being === undefined ? null : conscious_being ? 1 : 0,
     embedding_en_blob: floatArrayToBuffer(embeddingEn[0]),
     embedding_ru_blob: floatArrayToBuffer(embeddingRu[0]),
   })
@@ -234,7 +240,7 @@ export interface BulkInsertResult {
 export async function bulkInsertQuotes(
   quotes: QuoteInput[],
 ): Promise<BulkInsertResult> {
-  const insertCandidates: Required<Omit<QuoteInput, never>>[] = []
+  const insertCandidates: Required<QuoteInput>[] = []
   let skippedCount = 0
 
   const findByTextPrefixStmt = db.prepare(
@@ -251,6 +257,7 @@ export async function bulkInsertQuotes(
       source_ru = null,
       robert_comment_en = null,
       robert_comment_ru = null,
+      conscious_being,
     } = quote
 
     // Проверка дубликата по первым 5 словам
@@ -271,6 +278,7 @@ export async function bulkInsertQuotes(
       source_ru,
       robert_comment_en,
       robert_comment_ru,
+      conscious_being: conscious_being ? 1 : 0,
     })
   }
 
@@ -288,11 +296,11 @@ export async function bulkInsertQuotes(
     INSERT INTO quotes (
         author_en, author_ru, text_en, text_ru,
         source_en, source_ru, robert_comment_en, robert_comment_ru,
-        embedding_en_blob, embedding_ru_blob, created_at
+        conscious_being, embedding_en_blob, embedding_ru_blob, created_at
     ) VALUES (
         @author_en, @author_ru, @text_en, @text_ru,
         @source_en, @source_ru, @robert_comment_en, @robert_comment_ru,
-        @embedding_en_blob, @embedding_ru_blob, @created_at
+        @conscious_being, @embedding_en_blob, @embedding_ru_blob, @created_at
     )
     `,
   )
@@ -359,6 +367,8 @@ export async function structureQuotesFromText(
       source_ru: optionalString(record.source_ru),
       robert_comment_en: optionalString(record.robert_comment_en),
       robert_comment_ru: optionalString(record.robert_comment_ru),
+      conscious_being:
+        record.conscious_being === true || record.conscious_being === 1 ? 1 : 0,
     }
   })
 }

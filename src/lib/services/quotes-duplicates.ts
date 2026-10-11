@@ -28,6 +28,7 @@ const QUOTE_COLUMNS = `
     source_ru,
     robert_comment_en,
     robert_comment_ru,
+    conscious_being,
     created_at
 `
 

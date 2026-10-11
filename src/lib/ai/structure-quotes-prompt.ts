@@ -1,3 +1,11 @@
+import { consciousBeings } from '@/i18n/conscious-beings'
+
+// Единственный источник списка — i18n/conscious-beings.ts (его же показывает
+// страница «Сознательные существа»). Списки RU и EN идут в одном порядке.
+const CONSCIOUS_BEINGS_LIST = consciousBeings.ru
+  .map((b, i) => `- ${b.name} / ${consciousBeings.en[i]?.name ?? b.name}`)
+  .join('\n')
+
 export const STRUCTURE_QUOTES_PROMPT = `Структуризация цитат
 Нужно все Цитаты структурировать по Шаблону в JSON массив и вернуть код. Строго запрещено как-либо менять сами цитаты.
 Применять для каждой цитаты:
@@ -13,6 +21,7 @@ export const STRUCTURE_QUOTES_PROMPT = `Структуризация цитат
 * Цитаты Роберта включай
 * Цитаты с цифрой, но без автора или источника (если это не афоризмы или народные изречения), принадлежат Роберту Бертону
 * Не включай цитаты с автором или источником - Афоризм
+* conscious_being: true, если автор цитаты — одно из сознательных существ из списка ниже (учитывай разные написания и транслитерации имени, титулы, "Святой"/"Св.", "Рабби" и т.п.; "Роберт" — это Роберт Эрл Бертон, он в списке). Если автора в списке нет, а также если автор — книга, текст, пословица или источник, а не человек из списка — false
 
 Шаблон:
 [
@@ -24,7 +33,8 @@ export const STRUCTURE_QUOTES_PROMPT = `Структуризация цитат
     "source_en": "The Tempest, Prospero",
     "source_ru": "Буря, Просперо",
     "robert_comment_en": null,
-    "robert_comment_ru": null
+    "robert_comment_ru": null,
+    "conscious_being": true
   },
   {
     "author_en": "Egyptian Texts",
@@ -34,11 +44,15 @@ export const STRUCTURE_QUOTES_PROMPT = `Структуризация цитат
     "source_en": "Egyptian Love Poetry",
     "source_ru": "Египетская любовная поэзия",
     "robert_comment_en": null,
-    "robert_comment_ru": null
+    "robert_comment_ru": null,
+    "conscious_being": false
   }
 ]
 
 Ответом должен быть строго JSON-массив объектов по шаблону выше, без markdown-разметки, кодовых блоков и каких-либо пояснений.
+
+Список сознательных существ (русское имя / английское имя):
+${CONSCIOUS_BEINGS_LIST}
 
 Цитаты:
 `
