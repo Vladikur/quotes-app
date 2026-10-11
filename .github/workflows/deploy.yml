@@ -22,9 +22,19 @@ jobs:
     container: node:22-bullseye
 
     steps:
+      # Debian 11 (bullseye) снят с поддержки: bullseye-security пропал с
+      # deb.debian.org, и apt получал 404 на rsync. Пакеты живут только на
+      # archive.debian.org — переписываем sources.list туда. Release-файлы
+      # архива просрочены, поэтому Check-Valid-Until=false. Строки
+      # bullseye-updates в архиве нет, её не добавляем.
       - name: Install deploy tooling
         run: |
-          apt-get update -qq
+          rm -f /etc/apt/sources.list.d/*
+          cat > /etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian bullseye main
+          deb http://archive.debian.org/debian-security bullseye-security main
+          EOF
+          apt-get -o Acquire::Check-Valid-Until=false update -qq
           apt-get install -y --no-install-recommends \
             rsync openssh-client python3 make g++
           npm install -g node-gyp@latest
