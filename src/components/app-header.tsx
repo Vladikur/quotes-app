@@ -35,7 +35,7 @@ export function AppHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-4 lg:flex">
+        <nav className="hidden flex-1 items-center justify-center gap-4 lg:flex">
           <Link
             href="/conscious-beings"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
