@@ -158,7 +158,12 @@ export function QuoteCard({
                 <span
                   tabIndex={0}
                   role="img"
-                  onClick={() => setBeingTipOpen(true)}
+                  onClick={(e) => {
+                    // Radix closes the tooltip on trigger click; preventDefault
+                    // makes it skip that, so a touch tap keeps the tip open.
+                    e.preventDefault()
+                    setBeingTipOpen(true)
+                  }}
                   aria-label={t('actions.consciousBeing')}
                   className="inline-flex size-7 items-center justify-center text-muted-foreground"
                 >
