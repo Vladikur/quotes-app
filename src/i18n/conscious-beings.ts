@@ -289,13 +289,13 @@ export const consciousBeings: Record<Lang, ConsciousBeing[]> = {
     },
     { name: 'Силуан Афонский', era: '1866 г. н. э.', description: 'Монах' },
     {
-      name: 'Георгий Гурджиев',
+      name: 'Георгий Иванович Гурджиев',
       era: '1870 г. н. э.',
       description: 'Пробуждённый учитель',
     },
     { name: 'Райнер Мария Рильке', era: '1875 г. н. э.', description: 'Поэт' },
     {
-      name: 'Петр Дмитриевич Успенский',
+      name: 'Пётр Демьянович Успенский',
       era: '1878 г. н. э.',
       description: 'Пробуждённый учитель',
     },
