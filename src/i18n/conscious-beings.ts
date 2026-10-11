@@ -319,7 +319,6 @@ export const consciousBeings: Record<Lang, ConsciousBeing[]> = {
       era: '1939 г. н. э.',
       description: 'Пробуждённый учитель',
     },
-    { name: 'Архангел Гавриил' },
   ],
   en: [
     { name: 'Unas', era: '2350 BCE' },
@@ -549,6 +548,5 @@ export const consciousBeings: Record<Lang, ConsciousBeing[]> = {
       era: '1939 CE',
       description: 'Awakened teacher',
     },
-    { name: 'Archangel Gabriel' },
   ],
 }
