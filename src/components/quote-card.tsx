@@ -1,12 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Copy, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { useI18n } from '@/i18n/context'
+import type { Lang } from '@/i18n/translations'
 import { useAuth } from '@/contexts/auth-context'
 import type { ScoredQuote } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -41,10 +42,41 @@ export function QuoteCard({
   isDeleting: boolean
   onDelete: (id: number) => void
 }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const { role } = useAuth()
 
+  // Язык конкретной цитаты: по умолчанию — глобальный, но его можно
+  // переключить локально. При смене глобального языка локальный выбор сбрасывается.
+  const [override, setOverride] = useState<Lang | null>(null)
+  const [prevLang, setPrevLang] = useState(lang)
+  if (prevLang !== lang) {
+    setPrevLang(lang)
+    setOverride(null)
+  }
+
+  const cardLang = override ?? lang
+  const otherLang: Lang = cardLang === 'ru' ? 'en' : 'ru'
+
+  const author = cardLang === 'ru' ? quote.author_ru : quote.author_en
+  const source = cardLang === 'ru' ? quote.source_ru : quote.source_en
+  const text = cardLang === 'ru' ? quote.text_ru : quote.text_en
+  const comment =
+    cardLang === 'ru' ? quote.robert_comment_ru : quote.robert_comment_en
+  const commentLabel =
+    cardLang === 'ru' ? 'Комментарий Роберта:' : "Robert's comment:"
+
   const showDevInfo = role === 'editor' || isDevMode
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${normalizeForDisplay(text)}\n— ${author}`,
+      )
+      toast.success(t('success.quoteCopied'))
+    } catch {
+      toast.error(t('errors.unknown'))
+    }
+  }
 
   return (
     <Card
@@ -109,79 +141,46 @@ export function QuoteCard({
         </div>
       )}
 
-      <QuoteBlock
-        author={quote.author_en}
-        source={quote.source_en}
-        text={quote.text_en}
-        comment={quote.robert_comment_en}
-        commentLabel="Robert's comment:"
-      />
+      <div className="relative space-y-2">
+        <div className="absolute top-0 right-0 flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-xs font-medium text-muted-foreground"
+            aria-label={t('actions.switchQuoteLang')}
+            title={t('actions.switchQuoteLang')}
+            onClick={() => setOverride(otherLang)}
+          >
+            {otherLang.toUpperCase()}
+          </Button>
 
-      <Separator />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label={t('actions.copyQuote')}
+            title={t('actions.copyQuote')}
+            onClick={handleCopy}
+          >
+            <Copy className="size-3.5" />
+          </Button>
+        </div>
 
-      <QuoteBlock
-        author={quote.author_ru}
-        source={quote.source_ru}
-        text={quote.text_ru}
-        comment={quote.robert_comment_ru}
-        commentLabel="Комментарий Роберта:"
-      />
-    </Card>
-  )
-}
+        <div className="pr-20">
+          <h4 className="font-medium">{author}</h4>
+          {source && <p className="text-sm text-muted-foreground">{source}</p>}
+        </div>
 
-function QuoteBlock({
-  author,
-  source,
-  text,
-  comment,
-  commentLabel,
-}: {
-  author: string
-  source: string | null
-  text: string
-  comment: string | null
-  commentLabel: string
-}) {
-  const { t } = useI18n()
-
-  const handleCopy = async () => {
-    const normalizedText = normalizeForDisplay(text)
-
-    try {
-      await navigator.clipboard.writeText(`${normalizedText}\n— ${author}`)
-      toast.success(t('success.quoteCopied'))
-    } catch {
-      toast.error(t('errors.unknown'))
-    }
-  }
-
-  return (
-    <div className="relative space-y-2">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="absolute top-0 right-0 shrink-0 text-muted-foreground"
-        aria-label={t('actions.copyQuote')}
-        onClick={handleCopy}
-      >
-        <Copy className="size-3.5" />
-      </Button>
-
-      <div className="pr-9">
-        <h4 className="font-medium">{author}</h4>
-        {source && <p className="text-sm text-muted-foreground">{source}</p>}
-      </div>
-
-      <p className="text-base whitespace-pre-line sm:text-lg">
-        {normalizeForDisplay(text)}
-      </p>
-
-      {comment && (
-        <p className="text-sm text-muted-foreground italic">
-          {commentLabel} {normalizeForDisplay(comment)}
+        <p className="text-base whitespace-pre-line sm:text-lg">
+          {normalizeForDisplay(text)}
         </p>
-      )}
-    </div>
+
+        {comment && (
+          <p className="text-sm text-muted-foreground italic">
+            {commentLabel} {normalizeForDisplay(comment)}
+          </p>
+        )}
+      </div>
+    </Card>
   )
 }

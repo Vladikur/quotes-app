@@ -75,6 +75,7 @@ export interface TranslationDict {
     delete: string
     cancel: string
     copyQuote: string
+    switchQuoteLang: string
   }
   confirm: {
     deleteQuote: string
@@ -169,6 +170,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       delete: 'Удалить',
       cancel: 'Отмена',
       copyQuote: 'Копировать цитату',
+      switchQuoteLang: 'Показать цитату на другом языке',
     },
     confirm: {
       deleteQuote: 'Вы уверены, что хотите удалить цитату?',
@@ -261,6 +263,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       delete: 'Delete',
       cancel: 'Cancel',
       copyQuote: 'Copy quote',
+      switchQuoteLang: 'Show this quote in another language',
     },
     confirm: {
       deleteQuote: 'Are you sure you want to delete this quote?',
