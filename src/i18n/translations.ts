@@ -136,7 +136,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       logOut: 'Выйти',
       appName: 'Цитаты',
       menu: 'Меню',
-      consciousBeings: 'Сознательные существа',
+      consciousBeings: 'Список сознательных',
     },
     consciousBeings: {
       title: 'Сознательные существа',
@@ -172,7 +172,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       cancel: 'Отмена',
       copyQuote: 'Копировать цитату',
       switchQuoteLang: 'Показать цитату на другом языке',
-      consciousBeing: 'Сознательное существо',
+      consciousBeing: 'Сознательный автор',
     },
     confirm: {
       deleteQuote: 'Вы уверены, что хотите удалить цитату?',
@@ -230,7 +230,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       logOut: 'Logout',
       appName: 'Quotes',
       menu: 'Menu',
-      consciousBeings: 'Conscious Beings',
+      consciousBeings: 'List of conscious ones',
     },
     consciousBeings: {
       title: 'Conscious Beings',
@@ -266,7 +266,7 @@ export const translations: Record<'ru' | 'en', TranslationDict> = {
       cancel: 'Cancel',
       copyQuote: 'Copy quote',
       switchQuoteLang: 'Show this quote in another language',
-      consciousBeing: 'Conscious being',
+      consciousBeing: 'Conscious author',
     },
     confirm: {
       deleteQuote: 'Are you sure you want to delete this quote?',
